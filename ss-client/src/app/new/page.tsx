@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Container,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  Paper,
+  IconButton,
+} from "@mui/material";
+import { Add, Delete } from "@mui/icons-material";
 
 const NewProfilePage = () => {
   const [name, setName] = useState("");
@@ -29,8 +39,6 @@ const NewProfilePage = () => {
       skills: skills.map((s) => s.trim()).filter(Boolean),
     };
 
-    console.log(process.env.NEXT_PUBLIC_SERVER_URL);
-
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/profiles`,
       {
@@ -50,52 +58,54 @@ const NewProfilePage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Add New Profile</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block font-medium">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-            required
-          />
-        </div>
+    <Container maxWidth="sm" sx={{ mt: 8 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Add New Profile
+        </Typography>
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={3}>
+            <TextField
+              label="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              fullWidth
+              required
+            />
 
-        <div>
-          <label className="block font-medium">Skills</label>
-          {skills.map((skill, index) => (
-            <div key={index} className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={skill}
-                onChange={(e) => handleSkillChange(index, e.target.value)}
-                className="flex-grow border rounded px-3 py-2"
-              />
-              <button
-                type="button"
-                onClick={() => removeSkill(index)}
-                className="text-red-500"
+            <Stack spacing={2}>
+              <Typography variant="subtitle1">Skills</Typography>
+              {skills.map((skill, index) => (
+                <Stack direction="row" spacing={1} key={index} alignItems="center">
+                  <TextField
+                    value={skill}
+                    onChange={(e) => handleSkillChange(index, e.target.value)}
+                    fullWidth
+                  />
+                  <IconButton
+                    color="error"
+                    onClick={() => removeSkill(index)}
+                  >
+                    <Delete />
+                  </IconButton>
+                </Stack>
+              ))}
+              <Button
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={addSkill}
               >
-                Remove
-              </button>
-            </div>
-          ))}
-          <button type="button" onClick={addSkill} className="text-blue-500">
-            + Add Skill
-          </button>
-        </div>
+                Add Skill
+              </Button>
+            </Stack>
 
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Save Profile
-        </button>
-      </form>
-    </div>
+            <Button type="submit" variant="contained" color="primary">
+              Save Profile
+            </Button>
+          </Stack>
+        </form>
+      </Paper>
+    </Container>
   );
 };
 

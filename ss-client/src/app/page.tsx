@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  Container,
+  TextField,
+  Button,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Stack,
+  Paper,
+} from "@mui/material";
+import { Add, Delete, Edit, ChevronRight } from "@mui/icons-material";
 
 interface Profile {
   _id: string;
@@ -12,12 +25,12 @@ interface Profile {
 const ProfilesPage = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [token, setToken] = useState<string | null>(null);
-
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<{ name: string; skills: string }>({
+  const [editData, setEditData] = useState<{ name: string; skills: string[] }>({
     name: "",
-    skills: "",
+    skills: [],
   });
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -40,7 +53,6 @@ const ProfilesPage = () => {
 
   const handleDelete = async (id: string) => {
     if (!token) return;
-
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/profiles/${id}`,
       {
@@ -50,7 +62,6 @@ const ProfilesPage = () => {
         },
       }
     );
-
     if (response.ok) {
       setProfiles(profiles.filter((profile) => profile._id !== id));
     } else {
@@ -60,13 +71,28 @@ const ProfilesPage = () => {
 
   const handleEdit = (profile: Profile) => {
     if (!token) return;
-
     setEditingId(profile._id);
-    setEditData({ name: profile.name, skills: profile.skills.join(", ") });
+    setEditData({ name: profile.name, skills: profile.skills });
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditData({ ...editData, [e.target.name]: e.target.value });
+  };
+
+  const handleSkillChange = (index: number, value: string) => {
+    const updatedSkills = [...editData.skills];
+    updatedSkills[index] = value;
+    setEditData({ ...editData, skills: updatedSkills });
+  };
+
+  const handleAddSkill = () => {
+    setEditData({ ...editData, skills: [...editData.skills, ""] });
+  };
+
+  const handleRemoveSkill = (index: number) => {
+    const updatedSkills = [...editData.skills];
+    updatedSkills.splice(index, 1);
+    setEditData({ ...editData, skills: updatedSkills });
   };
 
   const handleEditSubmit = async () => {
@@ -82,17 +108,14 @@ const ProfilesPage = () => {
           },
           body: JSON.stringify({
             name: editData.name,
-            skills: editData.skills.split(",").map((skill) => skill.trim()),
+            skills: editData.skills.map((skill) => skill.trim()),
           }),
         }
       );
-
       if (!response.ok) {
         throw new Error("Failed to update profile");
       }
-
       const updated = await response.json();
-
       setProfiles(profiles.map((p) => (p._id === editingId ? updated : p)));
       setEditingId(null);
     } catch (err) {
@@ -105,96 +128,141 @@ const ProfilesPage = () => {
     setToken(null);
   };
 
-  return (
-    <div className="max-w-5xl mx-auto p-2 md:p-4">
-      <div className="flex justify-between items-start mb-4">
-        <h1 className="text-4xl font-bold">
-          Skill<span className="text-blue-600">Social</span>
-        </h1>
-        <div className="flex flex-col items-end">
-          {!token ? (
-            <Link href="/auth">
-              <button className="bg-blue-600 text-white px-2 py-1 mb-2 rounded cursor-pointer">Sign in</button>
-            </Link>
-          ) : (
-            <button className="border-1 border-red-600 text-red-600 px-2 py-1 mb-2 rounded cursor-pointer" onClick={handleSignOut}>Sign out</button>
-          )}
-          <Link href="/new">
-            <p className="text-green-600 hover:underline">+ Add Profile</p>
-          </Link>
-        </div>
-      </div>
+  const filteredProfiles = profiles.filter((profile) => {
+    const query = searchQuery.toLowerCase();
+    const nameMatch = profile.name.toLowerCase().includes(query);
+    const skillsMatch = profile.skills.some((skill) =>
+      skill.toLowerCase().includes(query)
+    );
+    return nameMatch || skillsMatch;
+  });
 
-      {profiles.length === 0 ? (
-        <p className="text-gray-500">No profiles yet.</p>
-      ) : !editingId ? (
-        <ul className="space-y-4">
-          {profiles.map((profile) => (
-            <li key={profile._id} className="border rounded-md p-4">
-              <>
-                <h3 className="font-bold text-xl">{profile.name}</h3>
-                <ul className="list-disc list-inside text-sm text-gray-400">
-                  <p>skills:</p>
-                  {profile.skills.map((skill, idx) => (
-                    <li key={idx}>{skill}</li>
-                  ))}
-                </ul>
-              </>
-              {token ? (
-                <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={() => handleDelete(profile._id)}
-                    className="text-red-600 border-1 border-red-600 rounded-sm px-2 cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => handleEdit(profile)}
-                    className="text-blue-600 border-1 border-blue-600 rounded-sm px-2 cursor-pointer"
-                  >
-                    Edit
-                  </button>
-                </div>
-              ) : (
-                <></>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <>
-          <label>Name:</label>
-          <input
-            className="border p-2 w-full mb-4"
-            name="name"
-            value={editData.name}
-            onChange={handleEditChange}
-          />
-          <label>Skills: (comma-separated)</label>
-          <input
-            className="border p-2 w-full"
-            name="skills"
-            value={editData.skills}
-            onChange={handleEditChange}
-            placeholder="Comma-separated skills"
-          />
-          <div className="flex flex-row gap-2 my-4">
-            <button
-              onClick={handleEditSubmit}
-              className="bg-green-500 text-white px-3 py-1 rounded"
+  return (
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Stack spacing={3}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Typography variant="h4">
+            Skill<span style={{ color: "#1976d2" }}>Social</span>
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            {!token ? (
+              <Button
+                variant="contained"
+                color="primary"
+                component={Link}
+                href="/auth"
+              >
+                Sign in
+              </Button>
+            ) : (
+              <Button variant="outlined" color="error" onClick={handleSignOut}>
+                Sign out
+              </Button>
+            )}
+            <Button
+              startIcon={<Add />}
+              variant="outlined"
+              component={Link}
+              href="/new"
             >
-              Save
-            </button>
-            <button
-              onClick={() => setEditingId(null)}
-              className="bg-gray-300 text-black px-3 py-1 rounded"
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+              Add Profile
+            </Button>
+          </Stack>
+        </Stack>
+
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="Search by name or skill"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+
+        {profiles.length === 0 ? (
+          <Typography color="text.secondary">No profiles yet.</Typography>
+        ) : !editingId ? (
+          <List>
+            {filteredProfiles.map((profile) => (
+              <ListItem key={profile._id} sx={{ mb: 2 }} component={Paper}>
+                <Stack sx={{ width: "100%" }} spacing={1}>
+                  <Typography variant="h6">{profile.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Skills:
+                  </Typography>
+                  <List dense>
+                    {profile.skills.map((skill, idx) => (
+                      <ListItem key={idx} sx={{ pl: 2 }}>
+                        <ChevronRight /><ListItemText primary={skill} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {token && (
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        startIcon={<Delete />}
+                        color="error"
+                        onClick={() => handleDelete(profile._id)}
+                      >
+                        Delete
+                      </Button>
+                      <Button
+                        startIcon={<Edit />}
+                        color="primary"
+                        onClick={() => handleEdit(profile)}
+                      >
+                        Edit
+                      </Button>
+                    </Stack>
+                  )}
+                </Stack>
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="Name"
+              name="name"
+              value={editData.name}
+              onChange={handleEditChange}
+            />
+            {editData.skills.map((skill, idx) => (
+              <Stack direction="row" spacing={1} key={idx}>
+                <TextField
+                  fullWidth
+                  label={`Skill ${idx + 1}`}
+                  value={skill}
+                  onChange={(e) => handleSkillChange(idx, e.target.value)}
+                />
+                <Button color="error" onClick={() => handleRemoveSkill(idx)}>
+                  ✕
+                </Button>
+              </Stack>
+            ))}
+            <Button variant="outlined" onClick={handleAddSkill}>
+              + Add Skill
+            </Button>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleEditSubmit}
+              >
+                Save
+              </Button>
+              <Button variant="outlined" onClick={() => setEditingId(null)}>
+                Cancel
+              </Button>
+            </Stack>
+          </Stack>
+        )}
+      </Stack>
+    </Container>
   );
 };
 
